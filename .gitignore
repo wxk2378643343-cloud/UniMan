@@ -50,6 +50,18 @@ tmp/
 temp/
 *.tmp
 
+# Keep deliverable documents and image assets under version control
+!doc/
+!doc/**
+!docs/
+!docs/**
+!docs/*.docx
+!docs/*.md
+!docs/images/
+!docs/images/**
+!doc/images/
+!doc/images/**
+
 # Local tooling workspaces / run artifacts
 .diagram-work/
 .playwright-work/
