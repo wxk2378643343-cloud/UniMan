@@ -1,0 +1,86 @@
+erDiagram
+    USERS ||--o{ REPAIRS : submits
+    USERS ||--o{ COMPLAINTS : creates
+    USERS ||--o{ NOTICES : publishes
+    USERS ||--o{ NOTICE_READS : reads
+    USERS ||--o{ EVALUATIONS : writes
+    REPAIRS ||--o{ EVALUATIONS : receives
+    NOTICES ||--o{ NOTICE_READS : tracked_by
+
+    USERS {
+        int id PK
+        string username
+        string password
+        string name
+        string role
+        string phone
+        string email
+        string department
+        string status
+        datetime created_at
+    }
+
+    REPAIRS {
+        int id PK
+        string order_no
+        int reporter_id FK
+        string reporter_name
+        string repair_type
+        string campus
+        string building
+        string room
+        string description
+        string contact_phone
+        string status
+        int assignee_id
+        string assignee_name
+        string result
+        string cancel_reason
+        string cancel_source
+        datetime created_at
+        datetime updated_at
+    }
+
+    COMPLAINTS {
+        int id PK
+        int user_id FK
+        string user_name
+        string type
+        string title
+        string content
+        string status
+        string reply
+        datetime created_at
+        datetime replied_at
+    }
+
+    NOTICES {
+        int id PK
+        string title
+        string content
+        string status
+        string publish_scope
+        int publisher_id FK
+        string publisher_name
+        datetime published_at
+        datetime created_at
+    }
+
+    NOTICE_READS {
+        int id PK
+        int notice_id FK
+        int user_id FK
+        datetime read_at
+    }
+
+    EVALUATIONS {
+        int id PK
+        int repair_id FK
+        int user_id FK
+        string user_name
+        int assignee_id
+        string assignee_name
+        int score
+        string comment
+        datetime created_at
+    }

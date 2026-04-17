@@ -1,0 +1,27 @@
+{
+  "attack": "user02 越权修改 user01 资料并重置其密码，随后直接创建公告",
+  "update_status": 200,
+  "update_result": {
+    "message": "个人信息已更新"
+  },
+  "login_status": 200,
+  "login_result": {
+    "message": "登录成功",
+    "token": "vuln-token-4",
+    "user": {
+      "id": 4,
+      "username": "user01",
+      "name": "张同学",
+      "role": "普通用户",
+      "phone": "13800009999",
+      "email": "hijacked@uniman.local",
+      "department": "计算机学院",
+      "status": "启用"
+    }
+  },
+  "notice_status": 200,
+  "notice_result": {
+    "message": "公告已保存",
+    "id": 21
+  }
+}

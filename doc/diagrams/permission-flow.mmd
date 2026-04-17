@@ -1,0 +1,13 @@
+flowchart TD
+    A["请求进入接口"] --> B{"without-vuln 是否启用 Depends(current_session)"}
+    B -->|否| C["直接访问控制器逻辑"]
+    C --> D["读取或修改数据库记录"]
+
+    B -->|是| E["校验 Authorization: Bearer token"]
+    E --> F{"Token 是否有效"}
+    F -->|否| G["返回 401"]
+    F -->|是| H["载入当前用户会话"]
+    H --> I{"是否满足 require_roles"}
+    I -->|否| J["返回 403"]
+    I -->|是| K["按角色过滤数据范围"]
+    K --> L["执行业务处理与状态流转"]

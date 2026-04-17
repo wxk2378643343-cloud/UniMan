@@ -1,0 +1,28 @@
+flowchart LR
+    subgraph Client["客户端层"]
+        U1["普通用户门户\nVue 3 + Vue Router + Axios"]
+        U2["后勤人员工作台\nVue 3 + Vue Router + Axios"]
+        U3["系统管理员后台\nVue 3 + Vue Router + Axios"]
+    end
+
+    subgraph Service["服务层"]
+        API["FastAPI 单体应用\napp/main.py"]
+        Auth["登录与会话处理\n/auth/login + Token"]
+        Biz["业务接口\n报修/投诉/公告/用户/角色/基础数据/评价"]
+        Upload["文件上传与静态资源\n/uploads"]
+    end
+
+    subgraph Data["数据层"]
+        DB["SQLite 数据库\nusers / repairs / complaints / notices ..."]
+        FileStore["上传文件目录\nuploads/"]
+    end
+
+    U1 --> API
+    U2 --> API
+    U3 --> API
+    API --> Auth
+    API --> Biz
+    API --> Upload
+    Auth --> DB
+    Biz --> DB
+    Upload --> FileStore

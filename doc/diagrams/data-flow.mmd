@@ -1,0 +1,22 @@
+flowchart LR
+    User["普通用户输入"]
+    Admin["管理员输入"]
+    Worker["后勤人员输入"]
+    Frontend["Vue 前端页面"]
+    API["FastAPI 接口层"]
+    Rule["业务校验与状态流转"]
+    DB["SQLite 数据库"]
+    Notice["公告阅读结果"]
+    Repair["工单处理结果"]
+
+    User --> Frontend
+    Admin --> Frontend
+    Worker --> Frontend
+    Frontend --> API
+    API --> Rule
+    Rule --> DB
+    DB --> Rule
+    Rule --> API
+    API --> Frontend
+    Frontend --> Notice
+    Frontend --> Repair

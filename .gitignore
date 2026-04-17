@@ -49,3 +49,11 @@ uploads/
 tmp/
 temp/
 *.tmp
+
+# Local tooling workspaces / run artifacts
+.diagram-work/
+.playwright-work/
+.tmp_with_vuln_frontend*.log
+.tmp_with_vuln_frontend*.err.log
+.tmp_without_vuln_backend*.log
+.tmp_without_vuln_backend*.err.log

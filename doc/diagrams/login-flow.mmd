@@ -1,0 +1,13 @@
+flowchart TD
+    A["用户输入用户名与密码"] --> B["前端调用 /api/auth/login"]
+    B --> C{"with-vuln 版本"}
+    C -->|是| D["后端拼接 SQL 查询 users 表"]
+    D --> E{"查询是否命中"}
+    E -->|是| F["返回 vuln-token-{id} 与用户信息"]
+    E -->|否| G["返回 401"]
+
+    C -->|否| H["参数化查询 username"]
+    H --> I["PBKDF2 校验密码哈希"]
+    I --> J{"校验是否成功"}
+    J -->|是| K["签发随机 Bearer Token"]
+    J -->|否| G

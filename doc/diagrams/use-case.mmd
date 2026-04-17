@@ -1,0 +1,41 @@
+flowchart LR
+    Student["普通用户"]
+    Worker["后勤人员"]
+    Admin["系统管理员"]
+
+    UC1["登录系统"]
+    UC2["查看个人首页"]
+    UC3["提交报修"]
+    UC4["查看/修改报修"]
+    UC5["提交评价"]
+    UC6["提交投诉建议"]
+    UC7["查看公告"]
+    UC8["处理工单"]
+    UC9["退回工单"]
+    UC10["处理投诉建议"]
+    UC11["发布公告"]
+    UC12["维护用户"]
+    UC13["维护角色"]
+    UC14["维护基础数据"]
+    UC15["查看统计看板"]
+
+    Student --> UC1
+    Student --> UC2
+    Student --> UC3
+    Student --> UC4
+    Student --> UC5
+    Student --> UC6
+    Student --> UC7
+
+    Worker --> UC1
+    Worker --> UC8
+    Worker --> UC9
+    Worker --> UC15
+
+    Admin --> UC1
+    Admin --> UC10
+    Admin --> UC11
+    Admin --> UC12
+    Admin --> UC13
+    Admin --> UC14
+    Admin --> UC15
