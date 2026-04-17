@@ -1,10 +1,10 @@
-# without-vuln backend
+# with-vuln backend
 
-修复版后端，技术栈为 `FastAPI + SQLite`。
+漏洞研究版后端，技术栈为 `FastAPI + SQLite`。
 
 启动方式：
 
 ```powershell
-cd without-vuln/backend
-python -m uvicorn app.main:app --reload --port 8001
+cd with-vuln/backend
+python -m uvicorn app.main:app --reload --port 8000
 ```

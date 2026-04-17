@@ -1,34 +1,36 @@
 <template>
-  <AppShell title="角色管理">
+  <AppShell title="角色管理" eyebrow="管理后台" mode="admin">
     <section class="table-toolbar">
       <div class="toolbar-group toolbar-single">
-        <input v-model="keyword" placeholder="搜索角色名/编码/权限点" />
+        <input v-model="keyword" placeholder="搜索角色名称/编码" />
       </div>
       <button class="primary-button" @click="openCreate">新增角色</button>
     </section>
 
     <section class="panel-card">
-      <div class="panel-head"><h3>角色列表</h3></div>
       <div class="table-wrap">
         <table class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>角色名</th>
-              <th>编码</th>
-              <th>权限点</th>
+              <th>角色名称</th>
+              <th>角色编码</th>
+              <th>说明</th>
+              <th>菜单权限</th>
               <th>状态</th>
               <th>操作</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in filteredRoles" :key="item.id">
-              <td>#{{ item.id }}</td>
+            <tr v-for="item in filteredItems" :key="item.id">
               <td>{{ item.name }}</td>
               <td>{{ item.code }}</td>
-              <td class="cell-ellipsis" :title="item.permissions">{{ item.permissions }}</td>
+              <td>{{ item.description }}</td>
+              <td class="cell-ellipsis">{{ item.permissions }}</td>
               <td><span class="tag">{{ item.status }}</span></td>
-              <td><button class="table-button" @click="openEdit(item)">编辑</button></td>
+              <td class="table-actions">
+                <button class="table-button" @click="openEdit(item)">编辑</button>
+                <button class="table-button danger-button" @click="removeItem(item.id)">删除</button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -38,30 +40,38 @@
     <div v-if="modalVisible" class="modal-mask" @click.self="closeModal">
       <div class="modal-card">
         <div class="modal-header">
-          <h3>{{ modalMode === 'create' ? '新增角色' : '编辑角色' }}</h3>
+          <h3>{{ modalMode === "create" ? "新增角色" : "编辑角色" }}</h3>
           <button class="modal-close" @click="closeModal">×</button>
         </div>
         <form @submit.prevent="submitModal">
           <div class="modal-body form-grid form-grid-2">
-            <input v-model="modalForm.name" placeholder="角色名称" />
-            <input v-model="modalForm.code" placeholder="角色编码" />
-            <div class="field-block field-span-2">
-              <span class="field-label">权限点</span>
-              <div class="multi-select-grid">
-                <label v-for="item in permissionOptions" :key="item" class="check-chip">
-                  <input v-model="selectedPermissions" type="checkbox" :value="item" />
-                  <span>{{ item }}</span>
-                </label>
-              </div>
+            <div class="field-block">
+              <span class="field-label">角色名称</span>
+              <input v-model="form.name" />
             </div>
-            <select v-model="modalForm.status">
-              <option>启用</option>
-              <option>停用</option>
-            </select>
+            <div class="field-block">
+              <span class="field-label">角色编码</span>
+              <input v-model="form.code" />
+            </div>
+            <div class="field-block field-span-2">
+              <span class="field-label">角色说明</span>
+              <input v-model="form.description" />
+            </div>
+            <div class="field-block field-span-2">
+              <span class="field-label">菜单权限</span>
+              <textarea v-model="form.permissions" rows="4"></textarea>
+            </div>
+            <div class="field-block">
+              <span class="field-label">状态</span>
+              <select v-model="form.status">
+                <option>启用</option>
+                <option>停用</option>
+              </select>
+            </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="secondary-button" @click="closeModal">取消</button>
-            <button type="submit" class="primary-button">{{ modalMode === "create" ? "新增" : "保存" }}</button>
+            <button type="submit" class="primary-button">保存</button>
           </div>
         </form>
       </div>
@@ -71,40 +81,34 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
-import { createRole, fetchRoles, updateRole } from "../api";
+import { createRole, deleteRole, fetchRoles, updateRole } from "../api";
 import AppShell from "../components/AppShell.vue";
 
-const roles = ref([]);
+const items = ref([]);
 const keyword = ref("");
 const modalVisible = ref(false);
 const modalMode = ref("create");
 const currentId = ref(null);
-const permissionOptions = [
-  "用户管理",
-  "角色管理",
-  "工单管理",
-  "投诉建议",
-  "公告管理",
-  "统计分析"
-];
-const emptyForm = () => ({
+const form = reactive({
   name: "",
   code: "",
+  description: "",
   permissions: "",
   status: "启用"
 });
-const modalForm = reactive(emptyForm());
-const selectedPermissions = ref([]);
 
-const filteredRoles = computed(() =>
-  roles.value.filter((item) =>
-    !keyword.value || `${item.name}${item.code}${item.permissions}`.includes(keyword.value)
-  )
+const filteredItems = computed(() =>
+  items.value.filter((item) => !keyword.value || `${item.name}${item.code}`.includes(keyword.value))
 );
 
 function resetForm() {
-  Object.assign(modalForm, emptyForm());
-  selectedPermissions.value = [];
+  Object.assign(form, {
+    name: "",
+    code: "",
+    description: "",
+    permissions: "",
+    status: "启用"
+  });
 }
 
 function openCreate() {
@@ -117,8 +121,7 @@ function openCreate() {
 function openEdit(item) {
   modalMode.value = "edit";
   currentId.value = item.id;
-  Object.assign(modalForm, item);
-  selectedPermissions.value = item.permissions ? item.permissions.split(",").map((v) => v.trim()) : [];
+  Object.assign(form, item);
   modalVisible.value = true;
 }
 
@@ -126,21 +129,25 @@ function closeModal() {
   modalVisible.value = false;
 }
 
-async function loadRoles() {
+async function loadData() {
   const { data } = await fetchRoles();
-  roles.value = data;
+  items.value = data;
 }
 
 async function submitModal() {
-  modalForm.permissions = selectedPermissions.value.join(", ");
   if (modalMode.value === "create") {
-    await createRole(modalForm);
+    await createRole(form);
   } else {
-    await updateRole(currentId.value, modalForm);
+    await updateRole(currentId.value, form);
   }
   closeModal();
-  await loadRoles();
+  await loadData();
 }
 
-onMounted(loadRoles);
+async function removeItem(id) {
+  await deleteRole(id);
+  await loadData();
+}
+
+onMounted(loadData);
 </script>

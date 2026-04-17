@@ -1,13 +1,15 @@
 import axios from "axios";
+import { clearSession, getToken } from "./auth";
 
 const http = axios.create({
   baseURL: "/api",
-  timeout: 5000
+  timeout: 8000
 });
 
 http.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  const token = getToken();
   if (token) {
+    config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -17,10 +19,7 @@ http.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.clear();
-      if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
-      }
+      clearSession();
     }
     return Promise.reject(error);
   }
@@ -30,16 +29,20 @@ export function login(data) {
   return http.post("/auth/login", data);
 }
 
+export function fetchOptions() {
+  return http.get("/options");
+}
+
 export function fetchDashboard() {
   return http.get("/dashboard/summary");
 }
 
-export function fetchRepairs() {
-  return http.get("/repairs");
+export function updateProfile(id, data) {
+  return http.put(`/profile/${id}`, data);
 }
 
-export function createRepair(data) {
-  return http.post("/repairs", data);
+export function updatePassword(id, data) {
+  return http.put(`/profile/${id}/password`, data);
 }
 
 export function uploadImage(file) {
@@ -52,20 +55,20 @@ export function uploadImage(file) {
   });
 }
 
-export function fetchNotices() {
-  return http.get("/notices");
+export function fetchRepairs() {
+  return http.get("/repairs");
 }
 
-export function createNotice(data) {
-  return http.post("/notices", data);
+export function createRepair(data) {
+  return http.post("/repairs", data);
 }
 
 export function updateRepair(id, data) {
   return http.put(`/repairs/${id}`, data);
 }
 
-export function updateNotice(id, data) {
-  return http.put(`/notices/${id}`, data);
+export function deleteRepair(id) {
+  return http.delete(`/repairs/${id}`);
 }
 
 export function fetchComplaints() {
@@ -80,6 +83,36 @@ export function updateComplaint(id, data) {
   return http.put(`/complaints/${id}`, data);
 }
 
+export function deleteComplaint(id) {
+  return http.delete(`/complaints/${id}`);
+}
+
+export function fetchNotices() {
+  return http.get("/notices");
+}
+
+export function fetchUserNotices() {
+  return http.get("/notices");
+}
+
+export function markNoticeRead(id) {
+  return http.post(`/notices/${id}/read`, {
+    user_id: 0
+  });
+}
+
+export function createNotice(data) {
+  return http.post("/notices", data);
+}
+
+export function updateNotice(id, data) {
+  return http.put(`/notices/${id}`, data);
+}
+
+export function deleteNotice(id) {
+  return http.delete(`/notices/${id}`);
+}
+
 export function fetchUsers() {
   return http.get("/users");
 }
@@ -92,6 +125,10 @@ export function updateUser(id, data) {
   return http.put(`/users/${id}`, data);
 }
 
+export function deleteUser(id) {
+  return http.delete(`/users/${id}`);
+}
+
 export function fetchRoles() {
   return http.get("/roles");
 }
@@ -102,4 +139,32 @@ export function createRole(data) {
 
 export function updateRole(id, data) {
   return http.put(`/roles/${id}`, data);
+}
+
+export function deleteRole(id) {
+  return http.delete(`/roles/${id}`);
+}
+
+export function fetchBaseData() {
+  return http.get("/base-data");
+}
+
+export function createBaseData(data) {
+  return http.post("/base-data", data);
+}
+
+export function updateBaseData(id, data) {
+  return http.put(`/base-data/${id}`, data);
+}
+
+export function deleteBaseData(id) {
+  return http.delete(`/base-data/${id}`);
+}
+
+export function fetchEvaluations() {
+  return http.get("/evaluations");
+}
+
+export function createEvaluation(data) {
+  return http.post("/evaluations", data);
 }

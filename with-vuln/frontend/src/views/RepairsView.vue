@@ -1,59 +1,47 @@
 <template>
-  <AppShell title="报修工单">
+  <AppShell title="报修管理" eyebrow="管理后台" mode="admin">
     <section class="table-toolbar">
       <div class="toolbar-group">
-        <input v-model="keyword" placeholder="搜索位置/报修人/类型" />
+        <input v-model="keyword" placeholder="搜索工单号/报修人/地点" />
         <select v-model="statusFilter">
           <option value="">全部状态</option>
-          <option>待受理</option>
-          <option>已分配</option>
-          <option>处理中</option>
-          <option>已完成</option>
-          <option>已评价</option>
-          <option>已关闭</option>
+          <option v-for="item in options.repair_statuses" :key="item">{{ item }}</option>
         </select>
       </div>
-      <button v-if="canCreate" class="primary-button" @click="openCreate">新增工单</button>
+      <button v-if="isAdmin" class="primary-button" @click="openCreate">新增工单</button>
     </section>
 
     <section class="panel-card">
-      <div class="panel-head">
-        <h3>工单管理列表</h3>
-        <small>{{ tableHint }}</small>
-      </div>
       <div class="table-wrap">
         <table class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>工单号</th>
               <th>报修人</th>
               <th>位置</th>
               <th>类型</th>
-              <th>联系电话</th>
               <th>状态</th>
               <th>处理人</th>
-              <th>描述</th>
+              <th>联系电话</th>
               <th>操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="item in filteredRepairs" :key="item.id">
-              <td>#{{ item.id }}</td>
-              <td>{{ item.student_name }}</td>
-              <td>{{ item.location }}</td>
+              <td>{{ item.order_no }}</td>
+              <td>{{ item.reporter_name }}</td>
+              <td>{{ item.campus }} / {{ item.building }} / {{ item.room }}</td>
               <td>{{ item.repair_type }}</td>
-              <td>{{ item.contact_phone }}</td>
               <td><span class="tag">{{ item.status }}</span></td>
-              <td>{{ item.assignee }}</td>
-              <td class="cell-ellipsis" :title="item.description">{{ item.description }}</td>
-              <td>
-                <button
-                  class="table-button"
-                  :disabled="!canEdit(item)"
-                  @click="openEdit(item)"
-                >
-                  编辑
-                </button>
+              <td>{{ item.assignee_name }}</td>
+              <td>{{ item.contact_phone }}</td>
+              <td class="table-actions">
+                <button v-if="isAdmin" class="table-button" @click="openEdit(item)">编辑</button>
+                <button v-if="isAdmin" class="table-button danger-button" @click="removeItem(item.id)">删除</button>
+                <button v-if="canWorkerConfirm(item)" class="table-button" @click="confirmRepair(item)">确认</button>
+                <button v-if="canWorkerFinish(item)" class="table-button" @click="openFinish(item)">已处理</button>
+                <button v-if="canWorkerCancel(item)" class="table-button danger-button" @click="openCancel(item, 'worker')">取消</button>
+                <button v-if="isAdmin" class="table-button danger-button" @click="openCancel(item, 'admin')">管理员取消</button>
               </td>
             </tr>
           </tbody>
@@ -64,80 +52,116 @@
     <div v-if="modalVisible" class="modal-mask" @click.self="closeModal">
       <div class="modal-card">
         <div class="modal-header">
-          <h3>{{ modalMode === 'create' ? '新增工单' : '编辑工单' }}</h3>
+          <h3>{{ modalMode === "create" ? "新增报修" : "编辑报修" }}</h3>
           <button class="modal-close" @click="closeModal">×</button>
         </div>
         <form @submit.prevent="submitModal">
           <div class="modal-body form-grid form-grid-2">
-            <input
-              v-model="modalForm.student_name"
-              placeholder="报修人姓名"
-              :disabled="isStudent || isWorker"
-            />
-            <input
-              v-model="modalForm.location"
-              placeholder="故障位置"
-              :disabled="isWorker || (isStudent && modalMode === 'edit')"
-            />
-
-            <select
-              v-model="modalForm.repair_type"
-              :disabled="isWorker || (isStudent && modalMode === 'edit')"
-            >
-              <option v-for="item in repairTypeOptions" :key="item">{{ item }}</option>
-            </select>
-
-            <input v-model="modalForm.contact_phone" placeholder="联系电话" :disabled="!(isAdmin || isStudent)" />
-
-            <select v-model="modalForm.assignee" :disabled="!isAdmin">
-              <option v-for="item in assigneeOptions" :key="item">{{ item }}</option>
-            </select>
-
-            <template v-if="isAdmin">
-              <select v-model="modalForm.status">
-                <option v-for="item in repairStatusOptions" :key="item">{{ item }}</option>
-              </select>
-            </template>
-
-            <template v-else-if="isWorker">
-              <select v-model="modalForm.status">
-                <option>已完成</option>
-                <option>已关闭</option>
-              </select>
-            </template>
-
-            <template v-else>
-              <input v-model="modalForm.status" placeholder="状态" disabled />
-            </template>
-
             <div class="field-block">
-              <span class="field-label">报修图片</span>
-              <input type="file" accept="image/*" :disabled="!canUploadImage" @change="handleFileChange" />
-              <button
-                type="button"
-                class="secondary-button"
-                :disabled="!selectedFile || uploading || !canUploadImage"
-                @click="submitUpload"
-              >
-                {{ uploading ? "上传中..." : "上传图片" }}
-              </button>
+              <span class="field-label">报修人</span>
+              <select v-model="form.reporter_id" @change="syncReporter">
+                <option v-for="item in userOptions" :key="item.id" :value="item.id">{{ item.name }}</option>
+              </select>
             </div>
-
-            <textarea
-              v-model="modalForm.description"
-              rows="4"
-              placeholder="故障描述"
-              :disabled="!(isAdmin || isStudent)"
-            ></textarea>
-
-            <div v-if="previewUrl" class="field-block">
-              <span class="field-label">图片预览</span>
-              <img :src="previewUrl" alt="预览图" class="upload-preview" />
+            <div class="field-block">
+              <span class="field-label">报修类型</span>
+              <select v-model="form.repair_type">
+                <option v-for="item in options.repair_types" :key="item">{{ item }}</option>
+              </select>
+            </div>
+            <div class="field-block">
+              <span class="field-label">校区</span>
+              <select v-model="form.campus">
+                <option v-for="item in options.campuses" :key="item">{{ item }}</option>
+              </select>
+            </div>
+            <div class="field-block">
+              <span class="field-label">楼栋</span>
+              <select v-model="form.building">
+                <option v-for="item in buildingOptions" :key="item.name">{{ item.name }}</option>
+              </select>
+            </div>
+            <div class="field-block">
+              <span class="field-label">房间</span>
+              <input v-model="form.room" />
+            </div>
+            <div class="field-block">
+              <span class="field-label">联系电话</span>
+              <input v-model="form.contact_phone" />
+            </div>
+            <div class="field-block">
+              <span class="field-label">状态</span>
+              <select v-model="form.status">
+                <option v-for="item in options.repair_statuses" :key="item">{{ item }}</option>
+              </select>
+            </div>
+            <div class="field-block">
+              <span class="field-label">处理人</span>
+              <select v-model="form.assignee_id" @change="syncWorker">
+                <option :value="null">未分配</option>
+                <option v-for="item in options.workers" :key="item.id" :value="item.id">{{ item.name }}</option>
+              </select>
+            </div>
+            <div class="field-block field-span-2">
+              <span class="field-label">问题描述</span>
+              <textarea v-model="form.description" rows="4"></textarea>
+            </div>
+            <div class="field-block field-span-2">
+              <span class="field-label">处理结果</span>
+              <textarea v-model="form.result" rows="3"></textarea>
             </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="secondary-button" @click="closeModal">取消</button>
-            <button type="submit" class="primary-button">{{ modalMode === "create" ? "新增" : "保存" }}</button>
+            <button type="submit" class="primary-button">确定</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div v-if="cancelVisible" class="modal-mask" @click.self="closeCancel">
+      <div class="modal-card modal-card-compact">
+        <div class="modal-header">
+          <h3>{{ cancelMode === "admin" ? "管理员取消工单" : "取消当前处理" }}</h3>
+          <button class="modal-close" @click="closeCancel">×</button>
+        </div>
+        <form @submit.prevent="submitCancel">
+          <div class="modal-body form-grid">
+            <div class="field-block">
+              <span class="field-label">取消原因</span>
+              <textarea v-model="cancelReason" rows="4" placeholder="请填写取消原因"></textarea>
+            </div>
+            <small v-if="cancelMode === 'worker'" class="status-text">
+              取消后，工单将退回待受理，等待重新安排处理人员。
+            </small>
+            <small v-else class="status-text">
+              管理员取消后，表示该工单确认不需要修复，工单将终止。
+            </small>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="secondary-button" @click="closeCancel">返回</button>
+            <button type="submit" class="primary-button">确认</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div v-if="finishVisible" class="modal-mask" @click.self="closeFinish">
+      <div class="modal-card modal-card-compact">
+        <div class="modal-header">
+          <h3>提交处理结果</h3>
+          <button class="modal-close" @click="closeFinish">×</button>
+        </div>
+        <form @submit.prevent="submitFinish">
+          <div class="modal-body form-grid">
+            <div class="field-block">
+              <span class="field-label">处理结果</span>
+              <textarea v-model="finishResult" rows="4" placeholder="请填写本次处理结果"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="secondary-button" @click="closeFinish">返回</button>
+            <button type="submit" class="primary-button">确认提交</button>
           </div>
         </form>
       </div>
@@ -147,99 +171,110 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
-import { createRepair, fetchRepairs, updateRepair, uploadImage } from "../api";
+import { getSession } from "../auth";
+import { createRepair, deleteRepair, fetchOptions, fetchRepairs, fetchUsers, updateRepair } from "../api";
 import AppShell from "../components/AppShell.vue";
 
+const session = getSession();
+const isAdmin = session.user.role === "系统管理员";
+const isWorker = session.user.role === "后勤人员";
 const repairs = ref([]);
 const keyword = ref("");
 const statusFilter = ref("");
 const modalVisible = ref(false);
 const modalMode = ref("create");
 const currentId = ref(null);
-const selectedFile = ref(null);
-const previewUrl = ref("");
-const uploading = ref(false);
-const currentRole = localStorage.getItem("role") || "";
-const currentDisplayName = localStorage.getItem("displayName") || "";
-const isAdmin = currentRole === "系统管理员";
-const isStudent = currentRole === "学生";
-const isWorker = currentRole === "后勤工作人员";
-const canCreate = isAdmin || isStudent;
-const canUploadImage = isAdmin || isStudent;
-
-const repairTypeOptions = ["宿舍报修", "公共设施", "教学设备", "餐饮反馈", "网络报修"];
-const repairStatusOptions = ["待受理", "已分配", "处理中", "已完成", "已评价", "已关闭"];
-const assigneeOptions = ["未分配", "李师傅", "赵师傅", "周师傅", "王师傅"];
-
-const emptyForm = () => ({
-  student_name: currentDisplayName,
-  location: "",
-  repair_type: "宿舍报修",
+const cancelVisible = ref(false);
+const cancelTarget = ref(null);
+const cancelMode = ref("worker");
+const cancelReason = ref("");
+const finishVisible = ref(false);
+const finishTarget = ref(null);
+const finishResult = ref("");
+const options = reactive({
+  repair_types: [],
+  campuses: [],
+  buildings: [],
+  workers: [],
+  repair_statuses: []
+});
+const userOptions = ref([]);
+const form = reactive({
+  reporter_id: null,
+  reporter_name: "",
+  repair_type: "",
+  campus: "",
+  building: "",
+  room: "",
   description: "",
   contact_phone: "",
   image_url: "",
   status: "待受理",
-  assignee: "未分配"
-});
-const modalForm = reactive(emptyForm());
-
-const visibleRepairs = computed(() => {
-  if (isAdmin) {
-    return repairs.value;
-  }
-  if (isStudent) {
-    return repairs.value.filter((item) => item.student_name === currentDisplayName);
-  }
-  if (isWorker) {
-    return repairs.value.filter((item) => item.assignee === currentDisplayName);
-  }
-  return [];
+  assignee_id: null,
+  assignee_name: "未分配",
+  result: "",
+  cancel_reason: "",
+  cancel_source: ""
 });
 
+const buildingOptions = computed(() => options.buildings.filter((item) => item.parent_name === form.campus));
 const filteredRepairs = computed(() =>
-  visibleRepairs.value.filter((item) => {
-    const keywordMatched =
-      !keyword.value || `${item.student_name}${item.location}${item.repair_type}`.includes(keyword.value);
-    const statusMatched = !statusFilter.value || item.status === statusFilter.value;
-    return keywordMatched && statusMatched;
+  repairs.value.filter((item) => {
+    const hitKeyword = !keyword.value || `${item.order_no}${item.reporter_name}${item.campus}${item.building}${item.room}`.includes(keyword.value);
+    const hitStatus = !statusFilter.value || item.status === statusFilter.value;
+    return hitKeyword && hitStatus;
   })
 );
 
-const tableHint = computed(() => {
-  if (isAdmin) return "管理员查看全部工单";
-  if (isStudent) return "仅显示当前学生提交的工单";
-  if (isWorker) return "仅显示已分配给当前师傅的工单";
-  return "";
-});
-
 function resetForm() {
-  Object.assign(modalForm, emptyForm());
-  selectedFile.value = null;
-  previewUrl.value = "";
+  Object.assign(form, {
+    reporter_id: userOptions.value[0]?.id || null,
+    reporter_name: userOptions.value[0]?.name || "",
+    repair_type: options.repair_types[0] || "",
+    campus: options.campuses[0] || "",
+    building: options.buildings[0]?.name || "",
+    room: "",
+    description: "",
+    contact_phone: "",
+    image_url: "",
+    status: "待受理",
+    assignee_id: null,
+    assignee_name: "未分配",
+    result: ""
+  });
 }
 
-function canEdit(item) {
-  if (isAdmin) return true;
-  if (isStudent) return item.student_name === currentDisplayName;
-  if (isWorker) return item.assignee === currentDisplayName;
-  return false;
+function syncReporter() {
+  const current = userOptions.value.find((item) => item.id === Number(form.reporter_id));
+  if (current) {
+    form.reporter_name = current.name;
+    form.contact_phone = current.phone;
+  }
+}
+
+function syncWorker() {
+  const worker = options.workers.find((item) => item.id === Number(form.assignee_id));
+  form.assignee_name = worker?.name || "未分配";
 }
 
 function openCreate() {
-  if (!canCreate) return;
+  if (!isAdmin) {
+    return;
+  }
   modalMode.value = "create";
   currentId.value = null;
   resetForm();
+  syncReporter();
   modalVisible.value = true;
 }
 
 function openEdit(item) {
-  if (!canEdit(item)) return;
+  if (!isAdmin) {
+    return;
+  }
   modalMode.value = "edit";
   currentId.value = item.id;
-  Object.assign(modalForm, item);
-  previewUrl.value = item.image_url ? `http://127.0.0.1:8000${item.image_url}` : "";
-  selectedFile.value = null;
+  Object.assign(form, item);
   modalVisible.value = true;
 }
 
@@ -247,62 +282,123 @@ function closeModal() {
   modalVisible.value = false;
 }
 
-function handleFileChange(event) {
-  const [file] = event.target.files || [];
-  selectedFile.value = file || null;
-  if (file) {
-    previewUrl.value = URL.createObjectURL(file);
+async function loadData() {
+  const [repairRes, optionRes, userRes] = await Promise.all([fetchRepairs(), fetchOptions(), fetchUsers()]);
+  repairs.value = isWorker
+    ? repairRes.data.filter((item) => Number(item.assignee_id) === Number(session.user.id))
+    : repairRes.data;
+  Object.assign(options, optionRes.data);
+  userOptions.value = userRes.data.filter((item) => item.role === "普通用户");
+  if (!form.reporter_id) {
+    resetForm();
   }
-}
-
-async function submitUpload() {
-  if (!selectedFile.value || !canUploadImage) {
-    return;
-  }
-  uploading.value = true;
-  try {
-    const { data } = await uploadImage(selectedFile.value);
-    modalForm.image_url = data.url;
-    previewUrl.value = `http://127.0.0.1:8000${data.url}`;
-  } finally {
-    uploading.value = false;
-  }
-}
-
-async function loadRepairs() {
-  const { data } = await fetchRepairs();
-  repairs.value = data;
 }
 
 async function submitModal() {
+  syncReporter();
+  syncWorker();
   if (modalMode.value === "create") {
-    await createRepair({
-      ...modalForm,
-      student_name: isStudent ? currentDisplayName : modalForm.student_name,
-      status: "待受理",
-      assignee: "未分配"
-    });
-  } else if (isAdmin) {
-    await updateRepair(currentId.value, modalForm);
-  } else if (isStudent) {
-    const current = repairs.value.find((item) => item.id === currentId.value);
-    await updateRepair(currentId.value, {
-      ...current,
-      description: modalForm.description,
-      contact_phone: modalForm.contact_phone,
-      image_url: modalForm.image_url
-    });
-  } else if (isWorker) {
-    const current = repairs.value.find((item) => item.id === currentId.value);
-    await updateRepair(currentId.value, {
-      ...current,
-      status: modalForm.status
-    });
+    await createRepair(form);
+  } else {
+    await updateRepair(currentId.value, form);
   }
-
   closeModal();
-  await loadRepairs();
+  await loadData();
 }
 
-onMounted(loadRepairs);
+async function removeItem(id) {
+  await deleteRepair(id);
+  await loadData();
+}
+
+function canWorkerConfirm(item) {
+  return isWorker && item.status === "已分派" && Number(item.assignee_id) === Number(session.user.id);
+}
+
+function canWorkerFinish(item) {
+  return isWorker && item.status === "处理中" && Number(item.assignee_id) === Number(session.user.id);
+}
+
+function canWorkerCancel(item) {
+  return (
+    isWorker &&
+    ["已分派", "处理中"].includes(item.status) &&
+    Number(item.assignee_id) === Number(session.user.id)
+  );
+}
+
+async function confirmRepair(item) {
+  await updateRepair(item.id, {
+    ...item,
+    status: "处理中"
+  });
+  await loadData();
+}
+
+function openFinish(item) {
+  finishTarget.value = item;
+  finishResult.value = item.result || "";
+  finishVisible.value = true;
+}
+
+function closeFinish() {
+  finishVisible.value = false;
+  finishTarget.value = null;
+  finishResult.value = "";
+}
+
+function openCancel(item, mode) {
+  cancelTarget.value = item;
+  cancelMode.value = mode;
+  cancelReason.value = "";
+  cancelVisible.value = true;
+}
+
+function closeCancel() {
+  cancelVisible.value = false;
+  cancelTarget.value = null;
+  cancelReason.value = "";
+}
+
+async function submitCancel() {
+  if (!cancelTarget.value || !cancelReason.value.trim()) {
+    return;
+  }
+
+  const nextPayload =
+    cancelMode.value === "admin"
+      ? {
+          ...cancelTarget.value,
+          status: "已取消",
+          cancel_reason: cancelReason.value.trim(),
+          cancel_source: "admin"
+        }
+      : {
+          ...cancelTarget.value,
+          status: "待受理",
+          assignee_id: null,
+          assignee_name: "未分配",
+          cancel_reason: cancelReason.value.trim(),
+          cancel_source: "worker"
+        };
+
+  await updateRepair(cancelTarget.value.id, nextPayload);
+  closeCancel();
+  await loadData();
+}
+
+async function submitFinish() {
+  if (!finishTarget.value || !finishResult.value.trim()) {
+    return;
+  }
+  await updateRepair(finishTarget.value.id, {
+    ...finishTarget.value,
+    status: "待确认",
+    result: finishResult.value.trim()
+  });
+  closeFinish();
+  await loadData();
+}
+
+onMounted(loadData);
 </script>

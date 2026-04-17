@@ -1,44 +1,41 @@
 <template>
-  <AppShell title="投诉建议">
+  <AppShell title="投诉建议管理" eyebrow="管理后台" mode="admin">
     <section class="table-toolbar">
       <div class="toolbar-group">
-        <input v-model="keyword" placeholder="搜索学生/分类/内容" />
+        <input v-model="keyword" placeholder="搜索标题/提交人/类型" />
         <select v-model="statusFilter">
           <option value="">全部状态</option>
-          <option>待处理</option>
-          <option>处理中</option>
-          <option>已回复</option>
+          <option v-for="item in options.complaint_statuses" :key="item">{{ item }}</option>
         </select>
       </div>
-      <button class="primary-button" @click="openCreate">新增投诉建议</button>
     </section>
 
     <section class="panel-card">
-      <div class="panel-head"><h3>投诉建议列表</h3></div>
       <div class="table-wrap">
         <table class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>学生</th>
-              <th>分类</th>
-              <th>联系电话</th>
+              <th>提交人</th>
+              <th>类型</th>
+              <th>标题</th>
               <th>状态</th>
-              <th>内容</th>
-              <th>处理回复</th>
+              <th>回复</th>
+              <th>时间</th>
               <th>操作</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in filteredComplaints" :key="item.id">
-              <td>#{{ item.id }}</td>
-              <td>{{ item.student_name }}</td>
-              <td>{{ item.category }}</td>
-              <td>{{ item.contact_phone }}</td>
+            <tr v-for="item in filteredItems" :key="item.id">
+              <td>{{ item.user_name }}</td>
+              <td>{{ item.type }}</td>
+              <td>{{ item.title }}</td>
               <td><span class="tag">{{ item.status }}</span></td>
-              <td class="cell-ellipsis" :title="item.content">{{ item.content }}</td>
-              <td class="cell-ellipsis" :title="item.reply">{{ item.reply || "-" }}</td>
-              <td><button class="table-button" @click="openEdit(item)">编辑</button></td>
+              <td class="cell-ellipsis">{{ item.reply || "待回复" }}</td>
+              <td>{{ item.created_at }}</td>
+              <td class="table-actions">
+                <button class="table-button" @click="openEdit(item)">处理</button>
+                <button class="table-button danger-button" @click="removeItem(item.id)">删除</button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -48,27 +45,43 @@
     <div v-if="modalVisible" class="modal-mask" @click.self="closeModal">
       <div class="modal-card">
         <div class="modal-header">
-          <h3>{{ modalMode === 'create' ? '新增投诉建议' : '编辑投诉建议' }}</h3>
+          <h3>处理投诉建议</h3>
           <button class="modal-close" @click="closeModal">×</button>
         </div>
         <form @submit.prevent="submitModal">
           <div class="modal-body form-grid form-grid-2">
-            <input v-model="modalForm.student_name" placeholder="学生姓名" />
-            <select v-model="modalForm.category">
-              <option v-for="item in categoryOptions" :key="item">{{ item }}</option>
-            </select>
-            <input v-model="modalForm.contact_phone" placeholder="联系电话" />
-            <select v-model="modalForm.status">
-              <option>待处理</option>
-              <option>处理中</option>
-              <option>已回复</option>
-            </select>
-            <textarea v-model="modalForm.content" rows="4" placeholder="意见内容"></textarea>
-            <textarea v-model="modalForm.reply" rows="4" placeholder="处理回复"></textarea>
+            <div class="field-block">
+              <span class="field-label">提交人</span>
+              <input :value="form.user_name" disabled />
+            </div>
+            <div class="field-block">
+              <span class="field-label">类型</span>
+              <select v-model="form.type">
+                <option v-for="item in options.complaint_types" :key="item">{{ item }}</option>
+              </select>
+            </div>
+            <div class="field-block field-span-2">
+              <span class="field-label">标题</span>
+              <input v-model="form.title" />
+            </div>
+            <div class="field-block field-span-2">
+              <span class="field-label">内容</span>
+              <textarea v-model="form.content" rows="4"></textarea>
+            </div>
+            <div class="field-block">
+              <span class="field-label">状态</span>
+              <select v-model="form.status">
+                <option v-for="item in options.complaint_statuses" :key="item">{{ item }}</option>
+              </select>
+            </div>
+            <div class="field-block field-span-2">
+              <span class="field-label">处理回复</span>
+              <textarea v-model="form.reply" rows="4"></textarea>
+            </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="secondary-button" @click="closeModal">取消</button>
-            <button type="submit" class="primary-button">{{ modalMode === "create" ? "新增" : "保存" }}</button>
+            <button type="submit" class="primary-button">保存</button>
           </div>
         </form>
       </div>
@@ -78,50 +91,40 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
-import { createComplaint, fetchComplaints, updateComplaint } from "../api";
+import { deleteComplaint, fetchComplaints, fetchOptions, updateComplaint } from "../api";
 import AppShell from "../components/AppShell.vue";
 
-const complaints = ref([]);
+const items = ref([]);
 const keyword = ref("");
 const statusFilter = ref("");
 const modalVisible = ref(false);
-const modalMode = ref("create");
 const currentId = ref(null);
-const categoryOptions = ["服务态度", "环境卫生", "餐饮建议", "宿舍管理", "设施维护"];
-const emptyForm = () => ({
-  student_name: "",
-  category: "服务态度",
+const options = reactive({
+  complaint_types: [],
+  complaint_statuses: []
+});
+const form = reactive({
+  user_id: null,
+  user_name: "",
+  type: "",
+  title: "",
   content: "",
-  contact_phone: "",
+  image_url: "",
   status: "待处理",
   reply: ""
 });
-const modalForm = reactive(emptyForm());
 
-const filteredComplaints = computed(() =>
-  complaints.value.filter((item) => {
-    const keywordMatched =
-      !keyword.value || `${item.student_name}${item.category}${item.content}`.includes(keyword.value);
-    const statusMatched = !statusFilter.value || item.status === statusFilter.value;
-    return keywordMatched && statusMatched;
+const filteredItems = computed(() =>
+  items.value.filter((item) => {
+    const hitKeyword = !keyword.value || `${item.user_name}${item.type}${item.title}`.includes(keyword.value);
+    const hitStatus = !statusFilter.value || item.status === statusFilter.value;
+    return hitKeyword && hitStatus;
   })
 );
 
-function resetForm() {
-  Object.assign(modalForm, emptyForm());
-}
-
-function openCreate() {
-  modalMode.value = "create";
-  currentId.value = null;
-  resetForm();
-  modalVisible.value = true;
-}
-
 function openEdit(item) {
-  modalMode.value = "edit";
   currentId.value = item.id;
-  Object.assign(modalForm, item);
+  Object.assign(form, item);
   modalVisible.value = true;
 }
 
@@ -129,25 +132,22 @@ function closeModal() {
   modalVisible.value = false;
 }
 
-async function loadComplaints() {
-  const { data } = await fetchComplaints();
-  complaints.value = data;
+async function loadData() {
+  const [complaintRes, optionRes] = await Promise.all([fetchComplaints(), fetchOptions()]);
+  items.value = complaintRes.data;
+  Object.assign(options, optionRes.data);
 }
 
 async function submitModal() {
-  if (modalMode.value === "create") {
-    await createComplaint(modalForm);
-  } else {
-    await updateComplaint(currentId.value, {
-      category: modalForm.category,
-      content: modalForm.content,
-      status: modalForm.status,
-      reply: modalForm.reply
-    });
-  }
+  await updateComplaint(currentId.value, form);
   closeModal();
-  await loadComplaints();
+  await loadData();
 }
 
-onMounted(loadComplaints);
+async function removeItem(id) {
+  await deleteComplaint(id);
+  await loadData();
+}
+
+onMounted(loadData);
 </script>

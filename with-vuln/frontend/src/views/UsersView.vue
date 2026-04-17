@@ -1,42 +1,44 @@
 <template>
-  <AppShell title="用户管理">
+  <AppShell title="用户管理" eyebrow="管理后台" mode="admin">
     <section class="table-toolbar">
       <div class="toolbar-group">
-        <input v-model="keyword" placeholder="搜索用户名/姓名/部门" />
+        <input v-model="keyword" placeholder="搜索账号/姓名/部门" />
         <select v-model="roleFilter">
           <option value="">全部角色</option>
-          <option v-for="role in roles" :key="role.id" :value="role.name">{{ role.name }}</option>
+          <option v-for="item in options.roles" :key="item">{{ item }}</option>
         </select>
       </div>
       <button class="primary-button" @click="openCreate">新增用户</button>
     </section>
 
     <section class="panel-card">
-      <div class="panel-head"><h3>用户列表</h3></div>
       <div class="table-wrap">
         <table class="data-table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>用户名</th>
+              <th>账号</th>
               <th>姓名</th>
               <th>角色</th>
               <th>部门</th>
+              <th>手机号</th>
               <th>状态</th>
               <th>密码</th>
               <th>操作</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in filteredUsers" :key="item.id">
-              <td>#{{ item.id }}</td>
+            <tr v-for="item in filteredItems" :key="item.id">
               <td>{{ item.username }}</td>
-              <td>{{ item.display_name }}</td>
+              <td>{{ item.name }}</td>
               <td>{{ item.role }}</td>
               <td>{{ item.department }}</td>
+              <td>{{ item.phone }}</td>
               <td><span class="tag">{{ item.status }}</span></td>
               <td>{{ item.password }}</td>
-              <td><button class="table-button" @click="openEdit(item)">编辑</button></td>
+              <td class="table-actions">
+                <button class="table-button" @click="openEdit(item)">编辑</button>
+                <button class="table-button danger-button" @click="removeItem(item.id)">删除</button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -46,28 +48,54 @@
     <div v-if="modalVisible" class="modal-mask" @click.self="closeModal">
       <div class="modal-card">
         <div class="modal-header">
-          <h3>{{ modalMode === 'create' ? '新增用户' : '编辑用户' }}</h3>
+          <h3>{{ modalMode === "create" ? "新增用户" : "编辑用户" }}</h3>
           <button class="modal-close" @click="closeModal">×</button>
         </div>
         <form @submit.prevent="submitModal">
           <div class="modal-body form-grid form-grid-2">
-            <input v-model="modalForm.username" placeholder="用户名" />
-            <input v-model="modalForm.password" placeholder="密码" />
-            <input v-model="modalForm.display_name" placeholder="姓名" />
-            <select v-model="modalForm.department">
-              <option v-for="item in departmentOptions" :key="item">{{ item }}</option>
-            </select>
-            <select v-model="modalForm.role">
-              <option v-for="role in roles" :key="role.id" :value="role.name">{{ role.name }}</option>
-            </select>
-            <select v-model="modalForm.status">
-              <option>启用</option>
-              <option>停用</option>
-            </select>
+            <div class="field-block">
+              <span class="field-label">登录账号</span>
+              <input v-model="form.username" />
+            </div>
+            <div class="field-block">
+              <span class="field-label">登录密码</span>
+              <input v-model="form.password" />
+            </div>
+            <div class="field-block">
+              <span class="field-label">姓名</span>
+              <input v-model="form.name" />
+            </div>
+            <div class="field-block">
+              <span class="field-label">用户角色</span>
+              <select v-model="form.role">
+                <option v-for="item in options.roles" :key="item">{{ item }}</option>
+              </select>
+            </div>
+            <div class="field-block">
+              <span class="field-label">手机号</span>
+              <input v-model="form.phone" />
+            </div>
+            <div class="field-block">
+              <span class="field-label">邮箱</span>
+              <input v-model="form.email" />
+            </div>
+            <div class="field-block">
+              <span class="field-label">院系/部门</span>
+              <select v-model="form.department">
+                <option v-for="item in options.departments" :key="item">{{ item }}</option>
+              </select>
+            </div>
+            <div class="field-block">
+              <span class="field-label">账号状态</span>
+              <select v-model="form.status">
+                <option>启用</option>
+                <option>停用</option>
+              </select>
+            </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="secondary-button" @click="closeModal">取消</button>
-            <button type="submit" class="primary-button">{{ modalMode === "create" ? "新增" : "保存" }}</button>
+            <button type="submit" class="primary-button">保存</button>
           </div>
         </form>
       </div>
@@ -77,38 +105,49 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
-import { createUser, fetchRoles, fetchUsers, updateUser } from "../api";
+import { createUser, deleteUser, fetchOptions, fetchUsers, updateUser } from "../api";
 import AppShell from "../components/AppShell.vue";
 
-const users = ref([]);
-const roles = ref([]);
+const items = ref([]);
 const keyword = ref("");
 const roleFilter = ref("");
 const modalVisible = ref(false);
 const modalMode = ref("create");
 const currentId = ref(null);
-const departmentOptions = ["信息中心", "维修中心", "后勤保障处", "宿舍管理中心", "网信办", "计算机学院"];
-const emptyForm = () => ({
+const options = reactive({
+  roles: [],
+  departments: []
+});
+const form = reactive({
   username: "",
   password: "",
-  role: "学生",
-  display_name: "",
-  department: "后勤保障处",
+  name: "",
+  role: "普通用户",
+  phone: "",
+  email: "",
+  department: "",
   status: "启用"
 });
-const modalForm = reactive(emptyForm());
 
-const filteredUsers = computed(() =>
-  users.value.filter((item) => {
-    const keywordMatched =
-      !keyword.value || `${item.username}${item.display_name}${item.department}`.includes(keyword.value);
-    const roleMatched = !roleFilter.value || item.role === roleFilter.value;
-    return keywordMatched && roleMatched;
+const filteredItems = computed(() =>
+  items.value.filter((item) => {
+    const hitKeyword = !keyword.value || `${item.username}${item.name}${item.department}`.includes(keyword.value);
+    const hitRole = !roleFilter.value || item.role === roleFilter.value;
+    return hitKeyword && hitRole;
   })
 );
 
 function resetForm() {
-  Object.assign(modalForm, emptyForm());
+  Object.assign(form, {
+    username: "",
+    password: "",
+    name: "",
+    role: options.roles[0] || "普通用户",
+    phone: "",
+    email: "",
+    department: options.departments[0] || "",
+    status: "启用"
+  });
 }
 
 function openCreate() {
@@ -121,7 +160,7 @@ function openCreate() {
 function openEdit(item) {
   modalMode.value = "edit";
   currentId.value = item.id;
-  Object.assign(modalForm, item);
+  Object.assign(form, item);
   modalVisible.value = true;
 }
 
@@ -129,21 +168,26 @@ function closeModal() {
   modalVisible.value = false;
 }
 
-async function loadAll() {
-  const [usersRes, rolesRes] = await Promise.all([fetchUsers(), fetchRoles()]);
-  users.value = usersRes.data;
-  roles.value = rolesRes.data;
+async function loadData() {
+  const [userRes, optionRes] = await Promise.all([fetchUsers(), fetchOptions()]);
+  items.value = userRes.data;
+  Object.assign(options, optionRes.data);
 }
 
 async function submitModal() {
   if (modalMode.value === "create") {
-    await createUser(modalForm);
+    await createUser(form);
   } else {
-    await updateUser(currentId.value, modalForm);
+    await updateUser(currentId.value, form);
   }
   closeModal();
-  await loadAll();
+  await loadData();
 }
 
-onMounted(loadAll);
+async function removeItem(id) {
+  await deleteUser(id);
+  await loadData();
+}
+
+onMounted(loadData);
 </script>

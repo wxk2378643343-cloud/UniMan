@@ -19,6 +19,7 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.python-version
 .venv/
 venv/
 env/
@@ -34,6 +35,10 @@ node_modules/
 dist/
 .vite/
 coverage/
+*.tsbuildinfo
+
+# Backend runtime files
+uploads/
 
 # Environment files
 .env
