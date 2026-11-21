@@ -1,11 +1,10 @@
-# with-vuln frontend
+# UniMan 修订版前端
 
-漏洞研究版前端，技术栈为 `Vue 3 + Vite`。
+在 `without-vuln/frontend/` 安装依赖并运行开发服务。
 
-启动方式：
-
-```powershell
-cd with-vuln/frontend
-npm install
+```sh
+npm ci
 npm run dev
 ```
+
+浏览器打开 Vite 输出的地址。启动前先确认后端在本机 8000 端口运行。开发服务依据 [vite.config.js](vite.config.js) 代理 API 请求。运行 `npm run build` 可生成 `dist/` 静态构建产物。
