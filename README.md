@@ -1,19 +1,36 @@
 # UniMan 高校后勤服务管理系统
 
-UniMan 面向高校后勤业务，包含 Vue 用户界面、FastAPI 后端和 SQLite 数据层。业务范围和角色定义见 [需求设计](doc/高校后勤服务管理系统需求设计.md)。
+![Vue 3](https://img.shields.io/badge/Vue%203-2563EB?style=flat-square)
+![Vite](https://img.shields.io/badge/Vite-0F766E?style=flat-square)
+![FastAPI](https://img.shields.io/badge/FastAPI-334155?style=flat-square)
+![SQLite](https://img.shields.io/badge/SQLite-B45309?style=flat-square)
 
-| 路径 | 内容 |
+## 📌 项目简介
+
+校园后勤服务系统，覆盖公告、服务流程和后台管理。
+
+本仓库供**网络安全学习**使用。 `with-vuln/` 是有漏洞的历史对照版本，`without-vuln/` 是针对课程示例做过修复的版本。可以对照两套源码，理解防护措施和代码变更。
+
+## 🏗️ 系统架构
+
+- 两个版本分别包含 Vue 前端、FastAPI 后端和各自的本地数据库。
+- 前端负责用户交互，后端提供业务 API，SQLite 保存各版本的演示数据。
+
+## 📁 项目结构
+
+| 路径 | 用途 |
 | --- | --- |
-| [without-vuln/backend](without-vuln/backend/README.md) | 修订版后端、应用入口和本地数据 |
-| [without-vuln/frontend](without-vuln/frontend/README.md) | 修订版前端依赖、开发服务和构建 |
-| [docs/paper.md](docs/paper.md) | 系统设计与实现说明 |
-| `with-vuln/` | 供防御性对照审阅的历史实现 |
+| [`without-vuln/frontend`](without-vuln/frontend) | 修订版 Web 界面 |
+| [`without-vuln/backend`](without-vuln/backend) | 修订版 API 与数据库逻辑 |
+| [`with-vuln`](with-vuln) | 用于防御性对照的历史源码 |
 
-## 本地使用
+## 🚀 如何启动
 
-从修订版后端文档开始，按前端文档启动 Web 界面。修订版 Vite 开发服务器将 API 请求代理到本机的后端 8000 端口。修改后端端口时，同步更新 [Vite 代理配置](without-vuln/frontend/vite.config.js)。
+本地演示使用修订版。先启动后端，再在各自的前端目录运行 `npm ci` 和 `npm run dev`。具体环境和后端命令见[后端说明](without-vuln/backend/README.md)和[前端说明](without-vuln/frontend/README.md)。
 
-演示环境应使用独立的 SQLite 文件和虚构数据。
+| 入口 | 默认地址 |
+| --- | --- |
+| API | `http://127.0.0.1:8000` |
+| Web | `http://localhost:5173` |
 
-
-后端入口为 `python -m uvicorn app.main:app --reload --port 8000`，在 `without-vuln/backend/` 中运行。前端在 `without-vuln/frontend/` 中执行 `npm ci` 和 `npm run dev`。
+演示数据和数据库按版本分开保存。相关资料见[设计文档](doc/高校后勤服务管理系统需求设计.md)。
